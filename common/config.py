@@ -1,9 +1,33 @@
 import os
 
-DUCKDB_DATABASE_FILE = os.path.join(os.path.dirname(__file__), 'data', 'fininsight.duckdb')
-DUCKDB_TABLE_HISTORICAL_STOCK = 'historical_stock_data'
-DUCKDB_TABLE_NEWS_ARTICLE = 'news_article'
-DUCKDB_TABLE_SENTIMENT_SCORES = 'sentiment_scores'
-DUCKDB_TABLE_FINANCIAL_INSIGHTS = 'financial_insights'
+FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "d0ir93pr01qnehifshrgd0ir93pr01qnehifshs0")
+DUCKDB_DATABASE_FILE = "finninsight.duckdb" 
 
-FINNHUB_API_KEY = os.environ.get('FINNHUB_API_KEY', 'API')
+DUCKDB_TABLE_NAME_HISTORICAL_STOCK = "historical_stock_data"
+DUCKDB_TABLE_NAME_NEWS_ARTICLES = "news_articles"
+
+DUCKDB_TABLE_HISTORICAL_STOCK_DDL = f"""
+CREATE TABLE IF NOT EXISTS {DUCKDB_TABLE_NAME_HISTORICAL_STOCK} (
+    ticker VARCHAR,
+    date DATE,
+    open DOUBLE,
+    high DOUBLE,
+    low DOUBLE,
+    close DOUBLE,
+    volume BIGINT,
+    data_source VARCHAR,
+    ingestion_timestamp TIMESTAMP
+);
+"""
+
+DUCKDB_TABLE_NEWS_ARTICLES_DDL = f"""
+CREATE TABLE IF NOT EXISTS {DUCKDB_TABLE_NAME_NEWS_ARTICLES} (
+    ticker VARCHAR,
+    title VARCHAR,
+    description VARCHAR,
+    url VARCHAR,
+    published_at TIMESTAMP,
+    source VARCHAR,
+    ingestion_timestamp TIMESTAMP
+);
+"""
