@@ -47,3 +47,43 @@ def get_sentiment_analysis_model_and_tokenizer():
             _sentiment_analysis_model = None
             raise
     return _sentiment_analysis_tokenizer, _sentiment_analysis_model
+
+def _analyze_sentiment(text, tokenizer, model):
+    if not isinstance(text, str) or not text.strip():
+        return {'positive': 0.0, 'negative': 0.0, 'neutral': 0.0, 'compound': 0.0}
+    
+    try:
+        inputs = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=512)
+        inputs = {k: v.to_(_sentiment_analysis_device) for k, v in inputs.items()}
+        
+        with torch.no_grad():
+            outputs = model(**inputs)
+            
+        logits = outputs.logits
+        probabilities = F.softmax(logits, dim=1).squeeze()
+        
+        if probabilities.numel() == 3:
+            positive_score = probabilities[0].item()
+            negative_score = probabilities[1].item()
+            neutral_score = probabilities[2].item()
+        else:
+            logging.warning(f"{SENTIMENT_ANALYSIS_MODEL_NAME} output probabilities unexpectedly not 3 elements for text: {text[:50]}...")
+            positive_score, negative_score, neutral_score = 0.0, 0.0, 0.0
+            
+        compound_score = positive_score - negative_score
+        
+        
+        return {
+            'positive': positive_score,
+            'negative': negative_score,
+            'neutral': neutral_score,
+            'compound': compound_score
+        }
+    except Exception as se:
+        logging.error(f"Error during sentiment analysis.")
+        return {
+            'positive': 0.0,
+            'negative': 0.0,
+            'neutral': 0.0,
+            'compound': 0.0
+        }
