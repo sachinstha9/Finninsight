@@ -138,3 +138,15 @@ def fetch_news_data(ticker, days_ago=7):
     except Exception as e:
         logging.error(f"An unexpected error occured while fetching news for {ticker} from Finnhub: {e}", exc_info=True)
         return pd.DataFrame() 
+    
+def load_dataframe_to_duckdb(dataframe, table_name):
+    if dataframe.empty:
+        logging.info(f"No data to load into DuckDB table '{table_name}'.")
+        return 
+    
+    try:
+        with get_duckdb_connection() as con:
+            con.execute(f"INSERT INTO {table_name} SELECT * FROM dataframe")
+            logging.info(f"Loaded {len(dataframe)} rows into DuckDB table '{table_name}'.")
+    except Exception as e:
+        logging.error(f"Error loading data to DuckDB table '{table_name}': {e}", exc_info=True)
