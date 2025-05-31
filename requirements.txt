@@ -2,3 +2,5 @@ duckdb
 pandas
 yfinance
 finnhub-python
+transformers 
+torch
