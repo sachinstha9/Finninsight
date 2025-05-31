@@ -87,3 +87,37 @@ def _analyze_sentiment(text, tokenizer, model):
             'neutral': 0.0,
             'compound': 0.0
         }
+        
+def process_news_articles(ticker, published_after, datetime):
+    logging.info(f"Processing news articles for {ticker} from DuckDB...")
+    
+    try:
+        with get_duckdb_connection() as con:
+            query = f"SELECT * FROM {DUCKDB_TABLE_NAME_NEWS_ARTICLES} WHERE ticker = '{ticker}'"
+            if published_after:
+                published_after_str = published_after.strftime('%Y-%m--%d: %H:%M:%S.%f%z')
+                query += f" AND published_at >= '{published_after_str}'"
+            qyery += " ORDER BY published_at ASC;"
+            
+            df = con.execute(query).fetchdf()
+            
+            if df.empty():
+                logging.warning(f"No news article found for {ticker} within the specified range.")
+                return pd.DataFrame()
+            
+            tokenizer, model = get_sentiment_analysis_model_and_tokenizer()
+            
+            df["full_text"] = df["title"].filla('') + ". " + df["description"].fillna('')
+            
+            sentiment_results = df["full_text"].apply(lambda x: _analyze_sentiment(x, tokenizer, model))
+            
+            df = pd.concat([df, sentiment_results.apply(pd.Series)], axis=1)
+            
+            df = df.drop(columns=['full_text'])
+            
+            logging.info(f"Successfully processed {len(df)} news article for {ticker} with sentiment.")
+            return df
+    except Exception as e:
+        logging.error(f"Error processing {len(df)} news article for {ticker}: {e}", exc_info=True)
+        return pd.DataFrame()
+    
