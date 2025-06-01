@@ -236,7 +236,7 @@ if __name__ == "__main__":
                 }
             )
 
-        logging.info(f"---Data ingestion complete for {ticker}.---")
+        logging.info(f"---Data ingestion complete for {ticker}---")
         results[ticker] = "Successfully ingested data" if data_types_ingested else "No data ingested"
 
         if i < len(tickers_to_ingest) - 1:
