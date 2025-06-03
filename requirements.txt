@@ -1,4 +1,3 @@
-duckdb
 pandas
 yfinance
 finnhub-python
