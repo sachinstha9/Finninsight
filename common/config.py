@@ -1,4 +1,4 @@
 import os
-
-FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "d0ir93pr01qnehifshrgd0ir93pr01qnehifshs0")
+from dotenv import load_dotenv
+FINNHUB_API_KEY = os.getenv("FINNHUB_API_KEY")
 SENTIMENT_ANALYSIS_MODEL_NAME = "ProsusAI/finbert"

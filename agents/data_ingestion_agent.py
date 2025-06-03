@@ -60,6 +60,7 @@ def getStockNews(ticker, _from=None, to=None):
             start = end + timedelta(days=1)
         except Exception as e:
             print(f"News fetch failed. {e}")
+            break
 
     return combined_news
 
@@ -72,3 +73,5 @@ def getStockData(ticker, start=None, end=None, period=None, interval='1d'):
         return pd.DataFrame(t.history(start=start, end=end, interval=interval)).reset_index()
     else:
         raise ValueError("You must provide either a period or start/end date.")
+    
+getStockNews('AAPL', '2025/01/01', '2025/01/20')
