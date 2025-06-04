@@ -4,3 +4,4 @@ finnhub-python
 transformers 
 torch
 python-dotenv
+streamlit

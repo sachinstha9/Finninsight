@@ -84,5 +84,3 @@ def analyze_sentiment(texts, model, tokenizer, device):
         return [{'positive_sentiment': 0.0, 'negative_sentiment': 0.0, 'neutral_sentiment': 0.0}] * len(texts)
 
     
-tokenizer, model, device = get_sentiment_analysis_model_and_tokenizer()
-print(analyze_sentiment(["Tracking Jeremy Grantham's GMO Capital Portfolio - Q4 2024 Update"], model, tokenizer, device))
