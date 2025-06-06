@@ -5,3 +5,5 @@ transformers
 torch
 python-dotenv
 streamlit
+firebase_admin
+dotenv

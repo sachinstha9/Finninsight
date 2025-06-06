@@ -21,56 +21,33 @@ def getFinnhubClient():
         print(f"Finnhub initialization failed: {e}")
 
 def getStockNews(ticker, _from=None, to=None):
-    def to_datetime(dt):
-        if isinstance(dt, datetime):
-            return dt
-        elif isinstance(dt, date):
-            return datetime.combine(dt, datetime.min.time())
-        elif isinstance(dt, str):
-            return datetime.strptime(dt, '%Y-%m-%d')
-        else:
-            raise ValueError("Invalid date type")
-
-    if _from is None:
-        _from = datetime.now() - timedelta(days=30)
-    else:
-        _from = to_datetime(_from)
-
-    if to is None:
-        to = datetime.now()
-    else:
-        to = to_datetime(to)
-
-    if _from > to:
-        raise ValueError("_from cannot be greater than to.")
-
-    finnhub_client = getFinnhubClient()
-    combined_news = pd.DataFrame()
+    finnhubClient = getFinnhubClient()
+    combinedNews = pd.DataFrame()
     delta = timedelta(days=7)
 
+    _from = datetime.strptime(_from, '%Y-%m-%d').date()
+    to = datetime.strptime(to, '%Y-%m-%d').date()
     start = _from
-
+    
     while start <= to:
-        end = min(start + delta - timedelta(days=1), to)  
-        
+        end = min(start + delta, to)
         print(f"Fetching {ticker}'s news from {start} to {end}...")  
 
         try:
-            news = finnhub_client.company_news(
-                ticker,
-                start.strftime('%Y-%m-%d'),
-                end.strftime('%Y-%m-%d')
+            news = finnhubClient.company_news(
+                ticker, start, end
             )
 
             if news:
-                combined_news = pd.concat([combined_news, pd.DataFrame(news)], ignore_index=True)
-
-            start = end + timedelta(days=1)
+                combinedNews = pd.concat([combinedNews, pd.DataFrame(news)], ignore_index=True)
+            
+            start = end + timedelta(1) if start == end else end
         except Exception as e:
             print(f"News fetch failed. {e}")
             break
-
-    return combined_news
+        
+    combinedNewsUnique = combinedNews.drop_duplicates(subset='datetime', keep='first')
+    return combinedNewsUnique
 
 def getStockData(ticker, start=None, end=None, period=None, interval='1d'):
     t = yf.Ticker(ticker)
@@ -105,7 +82,7 @@ def updateNews(database, collectionName, ticker, to=None):
         recentNews = doc.to_dict()
 
     if recentNews is None:
-        _from = datetime.now() - timedelta(days=365)
+        _from = datetime.now() - timedelta(days=150)
     else:
         firestore_dt = recentNews['datetime']
         if hasattr(firestore_dt, 'to_datetime'):
@@ -138,4 +115,3 @@ def updateNews(database, collectionName, ticker, to=None):
     
 db = initFirestore()
 updateNews(db, 'news', 'AAPL', '2024-08-01')
-# getStockNews('AAPL', '2024-07-05', '2024-10-01')
