@@ -23,7 +23,7 @@ def getFinnhubClient():
 def getStockNews(ticker, _from=None, to=None):
     finnhubClient = getFinnhubClient()
     combinedNews = pd.DataFrame()
-    delta = timedelta(days=7)
+    delta = timedelta(days=3)
 
     _from = datetime.strptime(_from, '%Y-%m-%d').date()
     to = datetime.strptime(to, '%Y-%m-%d').date()
@@ -105,13 +105,13 @@ def updateNews(database, collectionName, ticker, to=None):
     news['datetime'] = pd.to_datetime(news['datetime'], unit='s')
     news['ticker'] = ticker
     
-    unwantedColumns = ['id', 'image']
+    unwantedColumns = ['id', 'image', 'source']
     news = news.drop(unwantedColumns, axis=1)
-    
+   
     news = news[news['datetime'] > _from]
 
     uploadDataframeToFirestore(database, news, collectionName, docIdColName=['ticker', 'datetime', 'headline'])
 
     
 db = initFirestore()
-updateNews(db, 'news', 'AAPL', '2024-08-01')
+updateNews(db, 'news', 'AAPL', '2024-10-01')
