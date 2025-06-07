@@ -1,10 +1,9 @@
-import sys
 import os
-import finnhub
+import sys
 import pandas as pd
-import yfinance as yf
+import finnhub
 from firebase_admin import firestore
-from datetime import date, timedelta, datetime, timezone
+from datetime import datetime, timedelta
 
 current_script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_script_dir)
@@ -13,6 +12,7 @@ if project_root not in sys.path:
 
 from common.config import FINNHUB_API_KEY
 from common.utils import initFirestore
+from data_processing_agent import getSentimentAnalysisModelAndTokenizer, analyzeSentiment
 
 def getFinnhubClient():
     try:
@@ -20,98 +20,76 @@ def getFinnhubClient():
     except Exception as e:
         print(f"Finnhub initialization failed: {e}")
 
-def getStockNews(ticker, _from=None, to=None):
-    finnhubClient = getFinnhubClient()
+def getStockNews(ticker, _from, to, batchSize=7):
+    try:
+        finnhubClient = getFinnhubClient()
+    except Exception as e:
+        print(f"Cannot initialize finnhub: {e}")
+        return pd.DataFrame()
+    
+    _from = datetime.strptime(_from, '%Y-%m-%d').date() if isinstance(_from, str) else _from
+    to = datetime.strptime(to, '%Y-%m-%d').date() if isinstance(to, str) else to
+    
     combinedNews = pd.DataFrame()
-    delta = timedelta(days=3)
-
-    _from = datetime.strptime(_from, '%Y-%m-%d').date()
-    to = datetime.strptime(to, '%Y-%m-%d').date()
+    
+    delta = timedelta(batchSize)
     start = _from
     
     while start <= to:
         end = min(start + delta, to)
-        print(f"Fetching {ticker}'s news from {start} to {end}...")  
-
+        
+        print(f"News from {start} to {end}...")
+        
         try:
-            news = finnhubClient.company_news(
-                ticker, start, end
-            )
-
-            if news:
-                combinedNews = pd.concat([combinedNews, pd.DataFrame(news)], ignore_index=True)
-            
-            start = end + timedelta(1) if start == end else end
+            news = finnhubClient.company_news(ticker, start, end)
         except Exception as e:
-            print(f"News fetch failed. {e}")
-            break
+            print(f"Cannot fetch news from finnhub: {e}")
+            return pd.DataFrame()
         
-    combinedNewsUnique = combinedNews.drop_duplicates(subset='datetime', keep='first')
-    return combinedNewsUnique
-
-def getStockData(ticker, start=None, end=None, period=None, interval='1d'):
-    t = yf.Ticker(ticker)
-    
-    if period:
-        return pd.DataFrame(t.history(period=period, interval=interval)).reset_index()
-    elif start or end:
-        return pd.DataFrame(t.history(start=start, end=end, interval=interval)).reset_index()
-    else:
-        raise ValueError("You must provide either a period or start/end date.")
-    
-
-def uploadDataframeToFirestore(database, df, collectionName, docIdColName=None):    
-    for index, row in df.iterrows():
-        docData = row.to_dict()
+        news = pd.DataFrame(news)
         
-        docId = str(index) if docIdColName is None else ' | '.join([str(row[col]).replace('/', '_') for col in docIdColName])
+        combinedNews = pd.concat([news, combinedNews], axis=0)
         
-        database.collection(collectionName).document(docId).set(docData)
-
-    print(f"Uploaded {len(df)} documents to collection '{collectionName}'.")
-
-
-def updateNews(database, collectionName, ticker, to=None):
-    docs = database.collection(collectionName)\
-        .where('ticker', '==', ticker)\
-        .order_by('datetime', direction=firestore.Query.DESCENDING)\
-        .limit(1).stream()
-
-    recentNews = None
-    for doc in docs:
-        recentNews = doc.to_dict()
-
-    if recentNews is None:
-        _from = datetime.now() - timedelta(days=150)
-    else:
-        firestore_dt = recentNews['datetime']
-        if hasattr(firestore_dt, 'to_datetime'):
-            _from = firestore_dt.to_datetime()
-        else:
-            _from = firestore_dt
-
-    if _from.tzinfo is not None:
-        _from = _from.replace(tzinfo=None)
-
-    if to is None:
-        to = datetime.now()
-    else:
-        to = datetime.strptime(to, '%Y-%m-%d')
-        if to.tzinfo is not None:
-            to = to.replace(tzinfo=None)
-
-    news = getStockNews(ticker, str(_from.date()), str(to.date()))
+        if end == to: break
+        start = end
+        
+    combinedNews['datetime'] = pd.to_datetime(combinedNews['datetime'], unit='s', utc=True, errors = 'coerce')
+    combinedNews = combinedNews.drop_duplicates()
+    combinedNews = combinedNews.iloc[:, 1:]
+    return combinedNews
     
-    news['datetime'] = pd.to_datetime(news['datetime'], unit='s')
+def appendNewsWithSentimentAnalysisScore(database, username, ticker, to, tokenizer, model, device):
+    docs = database.collection('news') \
+            .order_by('datetime', direction=firestore.Query.DESCENDING) \
+            .limit(1) \
+            .stream()
+
+    docs_list = list(docs)  
+    if not docs_list:
+        _from = datetime.strptime(to, '%Y-%m-%d').date() - timedelta(20)
+    else:
+        latest_doc = docs_list[0]
+        doc_dict = latest_doc.to_dict()
+        _from = doc_dict.get('datetime')
+        if isinstance(_from, str): _from = datetime.fromisoformat(_from)
+        
+    news = getStockNews(ticker, _from.date(), to, 3)
     news['ticker'] = ticker
     
-    unwantedColumns = ['id', 'image', 'source']
-    news = news.drop(unwantedColumns, axis=1)
-   
+    unwanted_cols = ['id']
+    news = news.drop(unwanted_cols, axis=1, errors="ignore")    
+
     news = news[news['datetime'] > _from]
-
-    uploadDataframeToFirestore(database, news, collectionName, docIdColName=['ticker', 'datetime', 'headline'])
-
     
+    news["positive_sentiment"], news["negative_sentiment"], news["neutral_sentiment"] = analyzeSentiment(news['headline'], tokenizer, model, device)
+    
+    for _, row in news.iterrows():
+        data = row.to_dict()
+        if isinstance(data.get('datetime'), datetime): data["datetime"] = data["datetime"].isoformat()
+        dataID = f"{data['datetime']} | {ticker}"
+        database.collection(username).document(dataID).set(data)
+        print(f"{dataID} appended successfully...")
+        
 db = initFirestore()
-updateNews(db, 'news', 'AAPL', '2024-10-01')
+tokenizer, model, device = getSentimentAnalysisModelAndTokenizer()
+appendNewsWithSentimentAnalysisScore(db, 'news', 'AAPL', '2025-05-10', tokenizer, model, device)
