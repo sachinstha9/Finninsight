@@ -92,4 +92,4 @@ def appendNewsWithSentimentAnalysisScore(database, username, ticker, to, tokeniz
         
 db = initFirestore()
 tokenizer, model, device = getSentimentAnalysisModelAndTokenizer()
-appendNewsWithSentimentAnalysisScore(db, 'news', 'AAPL', '2025-05-10', tokenizer, model, device)
+appendNewsWithSentimentAnalysisScore(db, 'news', 'AAPL', '2025-05-15', tokenizer, model, device)

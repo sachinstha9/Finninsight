@@ -7,3 +7,8 @@ python-dotenv
 streamlit
 firebase_admin
 dotenv
+langchain
+transformers
+accelerate
+fuzzywuzzy[speedup]
+langchain_community
