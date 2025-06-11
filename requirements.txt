@@ -9,6 +9,7 @@ firebase_admin
 dotenv
 langchain
 transformers
+sentence_transformers
 accelerate
 fuzzywuzzy[speedup]
 langchain_community

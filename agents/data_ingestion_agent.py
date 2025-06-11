@@ -102,7 +102,7 @@ def getNewsFromFirebase(database, collectionName, ticker, window=7):
         .where(filter=FieldFilter('ticker', '==', ticker)) \
         .where(filter=FieldFilter('datetime', '>=', cutoff)) \
         .stream()
-    return [f"headline: {doc.to_dict()['headline']} $ summary: {doc.to_dict()['summary']}" for doc in docs]
+    return [doc.to_dict()['headline'] for doc in docs]
 
 def getPriceVolumeHistory(ticker, period='7d', interval='1d'):
     stock = yf.Ticker(ticker)
@@ -119,7 +119,7 @@ def getCompanyProfile(ticker):
     
 # db = initFirestore()
 # print("News from firebase...")
-# print(getNewsFromFirebase(db, 'news', 'AAPL'))
+# print(getNewsFromFirebase(db, 'news', 'AAPL', 40))
 # print("\n\nPrice History...")
 # print(getPriceVolumeHistory("AAPL"))
 # print("\n\nCompany Profile...")
