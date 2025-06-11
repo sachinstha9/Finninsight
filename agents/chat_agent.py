@@ -18,18 +18,23 @@ ZEROSHOT_THRESHOLD = 0.5
 zeroShotClassificationModelName = "facebook/bart-large-mnli"
 classifier = pipeline("zero-shot-classification", model=zeroShotClassificationModelName)
 
-def extractTicker(query):
-    fuzzyMatch = process.extractOne(query, companyDict.keys())
-    if fuzzyMatch:
-        name, score = fuzzyMatch
-        if score >= FUZZY_THRESHOLD:
-            return [companyDict[name]][0]
+def extractTicker(query, companyDict, topN=3):
+    fuzzyMatch = process.extractOne(query, companyDict.keys(), limit=topN)
+    fuzzyTickers = [companyDict[name] for name, score in fuzzyMatch if score >= FUZZY_THRESHOLD]
+    
+    if len(fuzzyTickers) < topN:
+        candidateLabels = list(companyDict.keys())
+        result = classifier(query, candidateLabels)
+        zslTickers = [
+            companyDict[label] for label, score in zip(result['labels'], result['scores'])
+            if score >= ZEROSHOT_THRESHOLD
+        ]        
         
-    candidateLabels = list(companyDict.keys())
-    result = classifier(query, candidateLabels)
-    tickers = [companyDict[label] for label, score in zip(result['labels'], result['scores']) if score >= ZEROSHOT_THRESHOLD]
+        allTickers = list(dict.fromkeys(fuzzyTickers + zslTickers))
+        return allTickers[:topN]
 
-    return tickers[0] if tickers else None
+    return fuzzyTickers[:topN]
+    
 
 modelName = "google/flan-t5-base"
 tokenizer = AutoTokenizer.from_pretrained(modelName)

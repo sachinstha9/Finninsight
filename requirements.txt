@@ -12,3 +12,4 @@ transformers
 accelerate
 fuzzywuzzy[speedup]
 langchain_community
+google-cloud-firestore

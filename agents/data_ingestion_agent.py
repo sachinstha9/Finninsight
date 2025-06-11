@@ -2,8 +2,10 @@ import os
 import sys
 import pandas as pd
 import finnhub
+import yfinance as yf
 from firebase_admin import firestore
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 current_script_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.dirname(current_script_dir)
@@ -58,38 +60,72 @@ def getStockNews(ticker, _from, to, batchSize=7):
     combinedNews = combinedNews.iloc[:, 1:]
     return combinedNews
     
-def appendNewsWithSentimentAnalysisScore(database, username, ticker, to, tokenizer, model, device):
-    docs = database.collection('news') \
+def appendNewsWithSentimentAnalysisScore(database, collectionName, ticker, to, tokenizer, model, device):
+    docs = database.collection(collectionName) \
             .order_by('datetime', direction=firestore.Query.DESCENDING) \
             .limit(1) \
             .stream()
 
     docs_list = list(docs)  
     if not docs_list:
-        _from = datetime.strptime(to, '%Y-%m-%d').date() - timedelta(20)
+        _from = datetime.strptime(to, '%Y-%m-%d').date() - timedelta(10)
     else:
         latest_doc = docs_list[0]
         doc_dict = latest_doc.to_dict()
         _from = doc_dict.get('datetime')
         if isinstance(_from, str): _from = datetime.fromisoformat(_from)
         
-    news = getStockNews(ticker, _from.date(), to, 3)
+    news = getStockNews(ticker, _from.date() if docs_list else str(_from), to, 3)
     news['ticker'] = ticker
     
     unwanted_cols = ['id']
     news = news.drop(unwanted_cols, axis=1, errors="ignore")    
 
-    news = news[news['datetime'] > _from]
+    if docs_list: news = news[news['datetime'] > _from]
     
+    print(f"Sentiment Analysis started for {news.shape[0]} news...")
     news["positive_sentiment"], news["negative_sentiment"], news["neutral_sentiment"] = analyzeSentiment(news['headline'], tokenizer, model, device)
+    print(f"Sentiment Analysis finished...")
     
+    news = news[::-1].reset_index(drop=True)
     for _, row in news.iterrows():
         data = row.to_dict()
-        if isinstance(data.get('datetime'), datetime): data["datetime"] = data["datetime"].isoformat()
-        dataID = f"{data['datetime']} | {ticker}"
-        database.collection(username).document(dataID).set(data)
+        if isinstance(data['datetime'], pd.Timestamp): data['datetime'] = data["datetime"].to_pydatetime()
+        if isinstance(data['datetime'], datetime) and data['datetime'].tzinfo is None: data['datetime'] = data['datetime'].replace(tzinfo=timezone.utc)
+        dataID = f"{data['datetime'].isoformat(timespec='seconds')} | {ticker}"
+        database.collection(collectionName).document(dataID).set(data)
         print(f"{dataID} appended successfully...")
-        
+    
+def getNewsFromFirebase(database, collectionName, ticker, window=40):
+    cutoff = datetime.now(timezone.utc) - timedelta(days=window)
+    docs = database.collection(collectionName) \
+        .where(filter=FieldFilter('ticker', '==', ticker)) \
+        .where(filter=FieldFilter('datetime', '>=', cutoff)) \
+        .stream()
+    return [f"headline: {doc.to_dict()['headline']} summary: {doc.to_dict()['summary']}" for doc in docs]
+
+def getPriceHistory(ticker, period='7d', interval='1d'):
+    stock = yf.Ticker(ticker)
+    hist = stock.history(period=period, interval=interval)
+    return hist.reset_index()[['Date', 'Close', 'Volume']]
+
+def getCompanyProfile(ticker):
+    try:
+        finnhubClient = getFinnhubClient()
+    except Exception as e:
+        print(f"Cannot initialize finnhub: {e}")
+        return {}
+    return finnhubClient.company_profile2(symbol=ticker)
+    
 db = initFirestore()
-tokenizer, model, device = getSentimentAnalysisModelAndTokenizer()
-appendNewsWithSentimentAnalysisScore(db, 'news', 'AAPL', '2025-05-15', tokenizer, model, device)
+print("News from firebase...")
+print(getNewsFromFirebase(db, 'news', 'AAPL'))
+print("\n\nPrice History...")
+print(getPriceHistory("AAPL"))
+print("\n\nCompany Profile...")
+print(getCompanyProfile("AAPL"))
+
+
+# tokenizer, model, device = getSentimentAnalysisModelAndTokenizer()
+# appendNewsWithSentimentAnalysisScore(db, 'news', 'AAPL', '2025-05-25', tokenizer, model, device)
+
