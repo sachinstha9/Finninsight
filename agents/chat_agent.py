@@ -1,9 +1,19 @@
+import sys
+import os
 from langchain_community.llms import HuggingFacePipeline
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from fuzzywuzzy import process
 from transformers import pipeline
+from data_ingestion_agent import getNewsFromFirebase, getPriceVolumeHistory, getCompanyProfile
+
+current_script_dir = os.path.dirname(os.path.abspath(__file__))
+project_root = os.path.dirname(current_script_dir)
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from common.utils import initFirestore
 
 companyDict = {
     "Apple": "AAPL",
@@ -34,28 +44,30 @@ def extractTicker(query, companyDict, topN=3):
         return allTickers[:topN]
 
     return fuzzyTickers[:topN]
-    
 
-modelName = "google/flan-t5-base"
-tokenizer = AutoTokenizer.from_pretrained(modelName)
-model = AutoModelForSeq2SeqLM.from_pretrained(modelName)
+db = initFirestore()
+collectionName = 'news'
 
-pipe = pipeline("text2text-generation", model=model, tokenizer=tokenizer, max_length=512)
-llm = HuggingFacePipeline(pipeline=pipe)
+def buildContext(database, collectionName, ticker):
+    news = getNewsFromFirebase(database, collectionName, ticker, window=40)
+    priceVolume = getPriceVolumeHistory(ticker, period='14d', interval='1d')
+    profile = getCompanyProfile(ticker)
+    
+    priceVolumeStr = '\n'.join([f"{row.Date.date()}: ${row.Close:.2f} ${row.Volume:.2f}" for _, row in priceVolume.iterrows()])
+    newsStr = '\n'.join([f"- {n}" for n in news]) if news else "No recent news found."
 
-promptTemplate = PromptTemplate(
-    input_variables=["question", "context"],
-    template="""
-    You are a financial assistant. Based on the stock data below, answer the question.
+    context = f"""
+    Company: {profile.get('name')}
+    Industry: {profile.get('finnhubIndustry')}
+    Country: {profile.get('country')}
     
-    Context:
-    {context}
+    Stock Price and volumne (Last 14 days):
+    {priceVolumeStr}
     
-    Question:
-    {question}
-    
-    Answer in a helpful and concise manner.
+    Recent News:
+    {newsStr}
     """
-)
+    
+    return context.strip()
 
-ragChain = LLMChain(llm=llm, prompt=promptTemplate)
+print(buildContext(db, collectionName, 'AAPL'))

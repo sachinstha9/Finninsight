@@ -96,15 +96,15 @@ def appendNewsWithSentimentAnalysisScore(database, collectionName, ticker, to, t
         database.collection(collectionName).document(dataID).set(data)
         print(f"{dataID} appended successfully...")
     
-def getNewsFromFirebase(database, collectionName, ticker, window=40):
+def getNewsFromFirebase(database, collectionName, ticker, window=7):
     cutoff = datetime.now(timezone.utc) - timedelta(days=window)
     docs = database.collection(collectionName) \
         .where(filter=FieldFilter('ticker', '==', ticker)) \
         .where(filter=FieldFilter('datetime', '>=', cutoff)) \
         .stream()
-    return [f"headline: {doc.to_dict()['headline']} summary: {doc.to_dict()['summary']}" for doc in docs]
+    return [f"headline: {doc.to_dict()['headline']} $ summary: {doc.to_dict()['summary']}" for doc in docs]
 
-def getPriceHistory(ticker, period='7d', interval='1d'):
+def getPriceVolumeHistory(ticker, period='7d', interval='1d'):
     stock = yf.Ticker(ticker)
     hist = stock.history(period=period, interval=interval)
     return hist.reset_index()[['Date', 'Close', 'Volume']]
@@ -117,13 +117,13 @@ def getCompanyProfile(ticker):
         return {}
     return finnhubClient.company_profile2(symbol=ticker)
     
-db = initFirestore()
-print("News from firebase...")
-print(getNewsFromFirebase(db, 'news', 'AAPL'))
-print("\n\nPrice History...")
-print(getPriceHistory("AAPL"))
-print("\n\nCompany Profile...")
-print(getCompanyProfile("AAPL"))
+# db = initFirestore()
+# print("News from firebase...")
+# print(getNewsFromFirebase(db, 'news', 'AAPL'))
+# print("\n\nPrice History...")
+# print(getPriceVolumeHistory("AAPL"))
+# print("\n\nCompany Profile...")
+# print(getCompanyProfile("GOOGL"))
 
 
 # tokenizer, model, device = getSentimentAnalysisModelAndTokenizer()
