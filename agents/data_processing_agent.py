@@ -33,10 +33,18 @@ def analyzeSentiment(texts, tokenizer, model, device):
     if isinstance(texts, str):
         texts = [texts]
     
-    valid_texts = [t for t in texts if isinstance(t, str) and t.strip()]
-    
+    result_list = [{'positive_sentiment': 0.0, 'negative_sentiment': 0.0, 'neutral_sentiment': 0.0}] * len(texts)
+
+    valid_texts = []
+    valid_indices = []
+
+    for i, t in enumerate(texts):
+        if isinstance(t, str) and t.strip():
+            valid_texts.append(t)
+            valid_indices.append(i)
+
     if not valid_texts:
-        return [{'positive_sentiment': 0.0, 'negative_sentiment': 0.0, 'neutral_sentiment': 0.0}] * len(texts)
+        return result_list
 
     try:
         inputs = tokenizer(valid_texts, return_tensors="pt", padding=True, truncation=True, max_length=512)
@@ -46,11 +54,18 @@ def analyzeSentiment(texts, tokenizer, model, device):
             outputs = model(**inputs)
 
         logits = outputs.logits
-        probs = F.softmax(logits, dim=1)
+        probs = F.softmax(logits, dim=1).cpu().numpy()
 
-        return probs[:, 0], probs[:, 1], probs[:, 2]
+        for idx, sentiment in zip(valid_indices, probs):
+            result_list[idx] = {
+                'positive_sentiment': float(sentiment[0]),
+                'negative_sentiment': float(sentiment[1]),
+                'neutral_sentiment': float(sentiment[2]),
+            }
+
+        return result_list
 
     except Exception as e:
         print("Batch sentiment analysis error:", e)
-        return np.zeros(len(texts)), np.zeros(len(texts)), np.zeros(len(texts))
+        return result_list
 

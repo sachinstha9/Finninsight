@@ -62,13 +62,14 @@ def getStockNews(ticker, _from, to, batchSize=7):
     
 def appendNewsWithSentimentAnalysisScore(database, collectionName, ticker, to, tokenizer, model, device):
     docs = database.collection(collectionName) \
+            .where(filter=FieldFilter('ticker', '==', ticker)) \
             .order_by('datetime', direction=firestore.Query.DESCENDING) \
             .limit(1) \
             .stream()
 
     docs_list = list(docs)  
     if not docs_list:
-        _from = datetime.strptime(to, '%Y-%m-%d').date() - timedelta(10)
+        _from = datetime.strptime(to, '%Y-%m-%d').date() - timedelta(30)
     else:
         latest_doc = docs_list[0]
         doc_dict = latest_doc.to_dict()
@@ -84,7 +85,11 @@ def appendNewsWithSentimentAnalysisScore(database, collectionName, ticker, to, t
     if docs_list: news = news[news['datetime'] > _from]
     
     print(f"Sentiment Analysis started for {news.shape[0]} news...")
-    news["positive_sentiment"], news["negative_sentiment"], news["neutral_sentiment"] = analyzeSentiment(news['headline'], tokenizer, model, device)
+    sentiments = analyzeSentiment(news['headline'].tolist(), tokenizer, model, device)
+
+    news["positive_sentiment"] = [s['positive_sentiment'] for s in sentiments]
+    news["negative_sentiment"] = [s['negative_sentiment'] for s in sentiments]
+    news["neutral_sentiment"]  = [s['neutral_sentiment']  for s in sentiments]
     print(f"Sentiment Analysis finished...")
     
     news = news[::-1].reset_index(drop=True)
@@ -104,18 +109,13 @@ def getNewsFromFirebase(database, collectionName, ticker, window=7):
         .stream()
     return [doc.to_dict()['headline'] for doc in docs]
 
-def getPriceVolumeHistory(ticker, period='7d', interval='1d'):
-    stock = yf.Ticker(ticker)
-    hist = stock.history(period=period, interval=interval)
-    return hist.reset_index()[['Date', 'Close', 'Volume']]
-
-def getCompanyProfile(ticker):
+def getCompanyBasicFinancials(ticker):
     try:
         finnhubClient = getFinnhubClient()
     except Exception as e:
         print(f"Cannot initialize finnhub: {e}")
         return {}
-    return finnhubClient.company_profile2(symbol=ticker)
+    return finnhubClient.company_basic_financials(ticker, 'all')['metric']
     
 # db = initFirestore()
 # print("News from firebase...")
@@ -127,5 +127,5 @@ def getCompanyProfile(ticker):
 
 
 # tokenizer, model, device = getSentimentAnalysisModelAndTokenizer()
-# appendNewsWithSentimentAnalysisScore(db, 'news', 'AAPL', '2025-05-25', tokenizer, model, device)
+# appendNewsWithSentimentAnalysisScore(db, 'news', 'MSFT', '2025-06-11', tokenizer, model, device)
 
