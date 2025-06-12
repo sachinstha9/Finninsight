@@ -3,7 +3,7 @@ import os
 import heapq
 import yfinance as yf
 from langchain_community.llms import HuggingFacePipeline
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline, AutoModelForCasualLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, pipeline, AutoModelForCausalLM
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 from fuzzywuzzy import process
@@ -177,11 +177,28 @@ Revenue: {basicFinancials.get("revenuePerShareAnnual", "N/A")}"""
     return "\n\n--\n\n".join(contextBlocks)
     return tickers
 
+textGenTokenizer = AutoTokenizer.from_pretrained(TEXT_GENERATION_MODEL_NAME)
+textGenModel = AutoModelForCausalLM.from_pretrained(TEXT_GENERATION_MODEL_NAME, device_map="auto", trust_remote_code=True)
+textGenerator = pipeline("text-generation", model=textGenModel, tokenizer=textGenTokenizer)
+
+def chatAgent(database, collectionName, query):    
+    context = buildContext(database, collectionName, query)
+    
+    prompt = f"""
+You are a expert financial advisor. Use the provided context to answer the user's question accurately and clearly.
+
+Context:
+{context}
+
+User: {query}
+Advisor:"""
+
+    response = textGenerator(prompt, max_new_tokens=300, do_sample=True, temperature=0.7)[0]["generated_text"]
+    
+    answer = response.split("Advisor:")[-1].strip()
+    return answer
+
 db = initFirestore()
 collectionName = 'news'
 query = "How is apple and microsoft stock doing?"
-print(buildContext(db, collectionName, query))
-print(extractTicker(query, companyDict))
-
-tokenizer = AutoTokenizer.from_pretrained(TEXT_GENERATION_MODEL_NAME)
-textGenModel = AutoModelForCasualLM.from_pretrained(TEXT_GENERATION_MODEL_NAME, device_map="auto", trust_remote_code=True)
+print(chatAgent(db, collectionName, query))
