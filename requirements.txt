@@ -1,8 +1,10 @@
 pandas
 yfinance
 finnhub-python
-transformers 
+--index-url https://download.pytorch.org/whl/cu121
 torch
+torchvision
+torchaudio
 python-dotenv
 streamlit
 firebase_admin

@@ -12,12 +12,12 @@ project_root = os.path.dirname(current_script_dir)
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from common.config import SENTIMENT_ANALYSIS_MODEL_NAME
+from common.config import SENTIMENT_ANALYSIS_MODEL_NAME, HF_TOKEN
 
 def getSentimentAnalysisModelAndTokenizer():
     try:
-        sentiment_analysis_tokenizer = AutoTokenizer.from_pretrained(SENTIMENT_ANALYSIS_MODEL_NAME)
-        sentiment_analysis_model = AutoModelForSequenceClassification.from_pretrained(SENTIMENT_ANALYSIS_MODEL_NAME)
+        sentiment_analysis_tokenizer = AutoTokenizer.from_pretrained(SENTIMENT_ANALYSIS_MODEL_NAME, token=HF_TOKEN)
+        sentiment_analysis_model = AutoModelForSequenceClassification.from_pretrained(SENTIMENT_ANALYSIS_MODEL_NAME, token=HF_TOKEN)
         
         sentiment_analysis_device = "cuda" if torch.cuda.is_available() else "cpu"
         sentiment_analysis_model.to(sentiment_analysis_device)

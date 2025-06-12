@@ -19,7 +19,7 @@ if project_root not in sys.path:
 
 from data_ingestion_agent import getNewsFromFirebase, getCompanyBasicFinancials
 from common.utils import initFirestore
-from common.config import FINNHUB_API_KEY, EMBEDDING_MODEL_NAME, SUMMARIZATION_MODEL_NAME, ZERO_SHOT_CLASSIFIER_MODEL_NAME, TEXT_GENERATION_MODEL_NAME
+from common.config import FINNHUB_API_KEY, EMBEDDING_MODEL_NAME, SUMMARIZATION_MODEL_NAME, ZERO_SHOT_CLASSIFIER_MODEL_NAME, TEXT_GENERATION_MODEL_NAME, HF_TOKEN
 
 companyDict = {
     "Apple": "AAPL",
@@ -51,6 +51,7 @@ def extractTicker(query, companyDict, topN=3):
 
 
 embeddingModel = SentenceTransformer(EMBEDDING_MODEL_NAME)
+embeddingModel = embeddingModel.to('cuda')
 summarizer = pipeline("summarization", SUMMARIZATION_MODEL_NAME)
 
 # Get top N most relevant news based on semantic similarity
@@ -136,133 +137,12 @@ chatHistory = [
     {
         "user": "What do you think if microsoft?", 
         "advisor": "Microsoft has been a reliable performer, especially with its focus on cloud computing and enterprise solutions like Azure and Office 365. It offers good long-term growth potential, although investors should watch for market fluctuations."
-    },
-    {
-        "user": "Apple vs Microsoft which one is better?", 
-        "advisor": "Both companies have strong fundamentals. Apple excels in consumer hardware and ecosystem integration, while Microsoft dominates in enterprise software and cloud services. Your choice depends on your investment goals and risk tolerance."
-    },
-    {
-        "user": "Is now a good time to buy tech stocks?", 
-        "advisor": "Tech stocks can be volatile, but with ongoing innovation and digital transformation, they have long-term growth potential. It's wise to assess current valuations and consider diversification to manage risk."
-    },
-    {
-        "user": "What are the risks of investing in Apple?", 
-        "advisor": "Risks include market saturation, supply chain disruptions, and strong competition. Also, regulatory scrutiny and global economic factors can impact Apple’s performance."
-    },
-    {
-        "user": "How does Microsoft’s cloud business impact its stock?", 
-        "advisor": "Microsoft’s cloud division, Azure, is a major growth driver and contributes significantly to revenue. Strong performance here positively influences investor sentiment and stock price."
-    },
-    {
-        "user": "What is the dividend yield for Apple and Microsoft?", 
-        "advisor": "Currently, Apple's dividend yield is around 0.6%, while Microsoft's is approximately 0.8%. Both companies offer dividends, but they focus more on growth and reinvestment."
-    },
-    {
-        "user": "Can I expect steady growth from these stocks?", 
-        "advisor": "Historically, both have delivered steady growth, but stock prices can fluctuate with market conditions. A long-term investment approach generally reduces volatility risks."
-    },
-    {
-        "user": "Should I diversify beyond Apple and Microsoft?", 
-        "advisor": "Yes, diversification helps reduce risk by spreading investments across different sectors and asset types. While Apple and Microsoft are strong picks, balancing your portfolio is recommended."
-    },
-    {
-        "user": "How does Microsoft’s cloud business impact its stock?", 
-        "advisor": "Microsoft’s cloud division, Azure, is a major growth driver and contributes significantly to revenue. Strong performance here positively influences investor sentiment and stock price."
-    },
-    {
-        "user": "What is the dividend yield for Apple and Microsoft?", 
-        "advisor": "Currently, Apple's dividend yield is around 0.6%, while Microsoft's is approximately 0.8%. Both companies offer dividends, but they focus more on growth and reinvestment."
-    },
-    {
-        "user": "Can I expect steady growth from these stocks?", 
-        "advisor": "Historically, both have delivered steady growth, but stock prices can fluctuate with market conditions. A long-term investment approach generally reduces volatility risks."
-    },
-    {
-        "user": "What do you think of investing in apple?", 
-        "advisor": "Investing in Apple is generally considered a solid choice due to its strong brand, consistent revenue growth, and diversified product ecosystem. However, it's important to monitor market conditions and competition before making a decision."
-    },
-    {
-        "user": "What do you think if microsoft?", 
-        "advisor": "Microsoft has been a reliable performer, especially with its focus on cloud computing and enterprise solutions like Azure and Office 365. It offers good long-term growth potential, although investors should watch for market fluctuations."
-    },
-    {
-        "user": "Apple vs Microsoft which one is better?", 
-        "advisor": "Both companies have strong fundamentals. Apple excels in consumer hardware and ecosystem integration, while Microsoft dominates in enterprise software and cloud services. Your choice depends on your investment goals and risk tolerance."
-    },
-    {
-        "user": "Is now a good time to buy tech stocks?", 
-        "advisor": "Tech stocks can be volatile, but with ongoing innovation and digital transformation, they have long-term growth potential. It's wise to assess current valuations and consider diversification to manage risk."
-    },
-    {
-        "user": "What are the risks of investing in Apple?", 
-        "advisor": "Risks include market saturation, supply chain disruptions, and strong competition. Also, regulatory scrutiny and global economic factors can impact Apple’s performance."
-    },
-    {
-        "user": "How does Microsoft’s cloud business impact its stock?", 
-        "advisor": "Microsoft’s cloud division, Azure, is a major growth driver and contributes significantly to revenue. Strong performance here positively influences investor sentiment and stock price."
-    },
-    {
-        "user": "What is the dividend yield for Apple and Microsoft?", 
-        "advisor": "Currently, Apple's dividend yield is around 0.6%, while Microsoft's is approximately 0.8%. Both companies offer dividends, but they focus more on growth and reinvestment."
-    },
-    {
-        "user": "Can I expect steady growth from these stocks?", 
-        "advisor": "Historically, both have delivered steady growth, but stock prices can fluctuate with market conditions. A long-term investment approach generally reduces volatility risks."
-    },
-    {
-        "user": "Should I diversify beyond Apple and Microsoft?", 
-        "advisor": "Yes, diversification helps reduce risk by spreading investments across different sectors and asset types. While Apple and Microsoft are strong picks, balancing your portfolio is recommended."
-    },
-    {
-        "user": "How does Microsoft’s cloud business impact its stock?", 
-        "advisor": "Microsoft’s cloud division, Azure, is a major growth driver and contributes significantly to revenue. Strong performance here positively influences investor sentiment and stock price."
-    },
-    {
-        "user": "What is the dividend yield for Apple and Microsoft?", 
-        "advisor": "Currently, Apple's dividend yield is around 0.6%, while Microsoft's is approximately 0.8%. Both companies offer dividends, but they focus more on growth and reinvestment."
-    },
-    {
-        "user": "Can I expect steady growth from these stocks?", 
-        "advisor": "Historically, both have delivered steady growth, but stock prices can fluctuate with market conditions. A long-term investment approach generally reduces volatility risks."
-    },
-    {
-        "user": "What do you think of investing in apple?", 
-        "advisor": "Investing in Apple is generally considered a solid choice due to its strong brand, consistent revenue growth, and diversified product ecosystem. However, it's important to monitor market conditions and competition before making a decision."
-    },
-    {
-        "user": "What do you think if microsoft?", 
-        "advisor": "Microsoft has been a reliable performer, especially with its focus on cloud computing and enterprise solutions like Azure and Office 365. It offers good long-term growth potential, although investors should watch for market fluctuations."
-    },
-    {
-        "user": "Apple vs Microsoft which one is better?", 
-        "advisor": "Both companies have strong fundamentals. Apple excels in consumer hardware and ecosystem integration, while Microsoft dominates in enterprise software and cloud services. Your choice depends on your investment goals and risk tolerance."
-    },
-    {
-        "user": "Is now a good time to buy tech stocks?", 
-        "advisor": "Tech stocks can be volatile, but with ongoing innovation and digital transformation, they have long-term growth potential. It's wise to assess current valuations and consider diversification to manage risk."
-    },
-    {
-        "user": "What are the risks of investing in Apple?", 
-        "advisor": "Risks include market saturation, supply chain disruptions, and strong competition. Also, regulatory scrutiny and global economic factors can impact Apple’s performance."
-    },
-    {
-        "user": "How does Microsoft’s cloud business impact its stock?", 
-        "advisor": "Microsoft’s cloud division, Azure, is a major growth driver and contributes significantly to revenue. Strong performance here positively influences investor sentiment and stock price."
-    },
-    {
-        "user": "What is the dividend yield for Apple and Microsoft?", 
-        "advisor": "Currently, Apple's dividend yield is around 0.6%, while Microsoft's is approximately 0.8%. Both companies offer dividends, but they focus more on growth and reinvestment."
-    },
-    {
-        "user": "Can I expect steady growth from these stocks?", 
-        "advisor": "Historically, both have delivered steady growth, but stock prices can fluctuate with market conditions. A long-term investment approach generally reduces volatility risks."
     }
 ]
 
-textGenTokenizer = AutoTokenizer.from_pretrained(TEXT_GENERATION_MODEL_NAME)
-textGenModel = AutoModelForCausalLM.from_pretrained(TEXT_GENERATION_MODEL_NAME, device_map="auto", trust_remote_code=True)
+textGenTokenizer = AutoTokenizer.from_pretrained(TEXT_GENERATION_MODEL_NAME, token=HF_TOKEN)
+textGenModel = AutoModelForCausalLM.from_pretrained(TEXT_GENERATION_MODEL_NAME, device_map="auto", trust_remote_code=True, token=HF_TOKEN)
 textGenerator = pipeline("text-generation", model=textGenModel, tokenizer=textGenTokenizer)
-
 
 RECENT_TURNS_TO_KEEP = 5
 MAX_TOKENS = 2048
@@ -306,7 +186,7 @@ def summarizeChatHistory(text):
 
         try:
             inputLen = len(chunkText.split())
-            maxLen = max(10, min(130, inputLen // 2))
+            maxLen = max(10, min(256, inputLen // 2))
 
             summary = summarizer(chunkText, max_length=maxLen, min_length=10, do_sample=False)[0]['summary_text']
             summaries.append(summary)
@@ -415,14 +295,14 @@ Context:
 
 {chatHistoryPrompt}
 
-User: {query}
-Advisor:"""
+user: {query}
+advisor:"""
 
     print(prompt)
 
-    response = textGenerator(prompt, max_new_tokens=300, do_sample=True, temperature=0.7)[0]["generated_text"]
+    response = textGenerator(prompt, max_new_tokens=512, do_sample=True, temperature=0.7)[0]["generated_text"]
     
-    answer = response.split("Advisor:")[-1].strip()
+    answer = response.split("advisor:")[-1].strip()
     return answer
 
 db = initFirestore()
